@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Бариста ☕</title><script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    // Use Telegram theme colors if available
+    var bg = tg.themeParams && tg.themeParams.bg_color;
+    if (bg) document.body.style.background = bg;
+  }
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1a0a00;color:#fff;font-family:sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+#game{width:100%;max-width:420px;padding:10px;display:flex;flex-direction:column;gap:10px}
+#hdr{display:flex;justify-content:space-between;align-items:center;background:#2d1500;border-radius:14px;padding:10px 16px}
+.hval{font-size:1.5rem;font-weight:700;color:#f4a234}
+.hlbl{font-size:0.7rem;color:#c8864a}
+#queue-area{background:#2d1500;border-radius:14px;padding:8px 12px}
+#queue{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+.qitem{background:#3d2000;border-radius:9px;padding:5px 9px;font-size:0.78rem;white-space:nowrap;border:1px solid #5a3010;flex-shrink:0}
+#ord{background:linear-gradient(135deg,#3d1e00,#5a2d00);border-radius:16px;padding:14px;border:2px solid #f4a234;text-align:center;position:relative}
+#ord-lbl{font-size:0.7rem;color:#f4a234;text-transform:uppercase;letter-spacing:1px}
+#ord-em{font-size:2.2rem}
+#ord-nm{font-size:1.4rem;font-weight:700;margin:2px 0}
+#otimer{position:absolute;top:10px;right:12px;font-size:1.1rem;font-weight:700;color:#ff9944}
+#steps{display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+.sdot{width:30px;height:30px;border-radius:50%;border:2px solid #5a3010;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#2d1500;transition:all .2s}
+.sdot.done{background:#f4a234;border-color:#f4a234}
+.sdot.wrong{background:#e03030;border-color:#e03030}
+#cup-area{background:#2d1500;border-radius:14px;padding:10px;text-align:center}
+#cup{width:80px;height:90px;margin:0 auto}
+#cup svg{width:100%;height:100%}
+#layers{display:flex;justify-content:center;gap:5px;margin-top:6px;flex-wrap:wrap;min-height:22px}
+.lbadge{background:#3d2000;border-radius:7px;padding:2px 7px;font-size:0.72rem}
+#ings{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ibtn{background:#2d1500;border:2px solid #5a3010;border-radius:14px;padding:12px 6px;color:#fff;font-size:0.82rem;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;width:100%}
+.ibtn:active{background:#3d2000;border-color:#f4a234;transform:scale(0.93)}
+.iem{font-size:1.7rem;pointer-events:none}
+.inm{font-size:0.68rem;color:#c8864a;pointer-events:none}
+#fb{text-align:center;font-size:1rem;font-weight:700;min-height:24px}
+#fb.good{color:#6ee86e}
+#fb.bad{color:#ff5555}
+.screen{position:fixed;inset:0;background:rgba(20,8,0,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;padding:24px;text-align:center}
+.screen h1{font-size:2rem}
+.screen p{color:#c8864a;font-size:.95rem;max-width:310px}
+.mbtn{background:#f4a234;color:#1a0a00;border:none;border-radius:16px;padding:15px 36px;font-size:1.05rem;font-weight:700;cursor:pointer;margin-top:6px}
+.mbtn:active{transform:scale(.95)}
+.srow{display:flex;gap:20px;margin:6px 0}
+.snum{font-size:1.9rem;font-weight:700;color:#f4a234}
+.slbl{font-size:.75rem;color:#c8864a}
+</style>
+</head>
+<body>
+
+<div id="ss" class="screen">
+  <div style="font-size:3.5rem">☕</div>
+  <h1>Бариста</h1>
+  <p>Готовь кофе по рецептам — нажимай ингредиенты в правильном порядке!</p>
+  <p style="font-size:.8rem;color:#7a5030">Быстрее = больше очков &nbsp;|&nbsp; Ошибка = −15</p>
+  <button class="mbtn" onclick="startGame()">Начать смену ▶</button>
+</div>
+
+<div id="os" class="screen" style="display:none">
+  <div style="font-size:2.8rem">🏁</div>
+  <h1>Смена окончена</h1>
+  <div class="srow">
+    <div><div class="snum" id="fs">0</div><div class="slbl">очков</div></div>
+    <div><div class="snum" id="fd">0</div><div class="slbl">заказов</div></div>
+    <div><div class="snum" id="fl">1</div><div class="slbl">уровень</div></div>
+  </div>
+  <button class="mbtn" onclick="startGame()">Ещё раз</button>
+</div>
+
+<div id="game">
+  <div id="hdr">
+    <div><div class="hlbl">ОЧКИ</div><div class="hval" id="sc">0</div></div>
+    <div style="text-align:center"><div class="hlbl">УРОВЕНЬ</div><div class="hval" id="lv">1</div></div>
+    <div style="text-align:right"><div class="hlbl">ВРЕМЯ</div><div class="hval" id="tm">60</div></div>
+  </div>
+  <div id="queue-area">
+    <div style="font-size:.7rem;color:#c8864a;margin-bottom:5px;text-transform:uppercase;letter-spacing:1px">Очередь</div>
+    <div id="queue"></div>
+  </div>
+  <div id="ord">
+    <div id="ord-lbl">Текущий заказ</div>
+    <div id="otimer"></div>
+    <div id="ord-em">☕</div>
+    <div id="ord-nm">—</div>
+    <div id="steps"></div>
+  </div>
+  <div id="cup-area">
+    <div style="font-size:.7rem;color:#c8864a;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Стакан</div>
+    <div id="cup">
+      <svg viewBox="0 0 90 100">
+        <polygon points="10,5 80,5 70,95 20,95" fill="#3d2000" stroke="#7a4010" stroke-width="2"/>
+        <g id="clayers"></g>
+        <polygon points="10,5 80,5 70,95 20,95" fill="none" stroke="#c8864a" stroke-width="2.5"/>
+        <path d="M70,30 Q90,30 90,55 Q90,80 70,80" fill="none" stroke="#c8864a" stroke-width="2.5"/>
+      </svg>
+    </div>
+    <div id="layers"></div>
+  </div>
+  <div id="ings"></div>
+  <div id="fb"></div>
+</div>
+
+<script>
+var ING={
+  espresso:{e:'☕',n:'Эспрессо',c:'#3d1800'},
+  milk:    {e:'🥛',n:'Молоко',  c:'#e8dcc8'},
+  foam:    {e:'🫧',n:'Пена',    c:'#f0ece4'},
+  water:   {e:'💧',n:'Вода',    c:'#4488aa'},
+  sugar:   {e:'🍬',n:'Сахар',   c:'#f8e060'},
+  syrup:   {e:'🍯',n:'Сироп',   c:'#b05000'},
+  chocolate:{e:'🍫',n:'Шоколад',c:'#5c2800'},
+  cream:   {e:'🍦',n:'Сливки',  c:'#fffbe0'},
+  ice:     {e:'🧊',n:'Лёд',     c:'#a8d8f0'}
+};
+var REC=[
+  {n:'Эспрессо',   e:'☕', s:['espresso'],                              p:80},
+  {n:'Американо',  e:'🫖',s:['espresso','water'],                       p:100},
+  {n:'Капучино',   e:'☕', s:['espresso','milk','foam'],                 p:140},
+  {n:'Латте',      e:'🥤',s:['espresso','milk','milk','foam'],           p:160},
+  {n:'Флэт Уайт',  e:'☕', s:['espresso','espresso','milk'],             p:160},
+  {n:'Мокко',      e:'🍫',s:['espresso','chocolate','milk','foam'],      p:200},
+  {n:'Макиато',    e:'☕', s:['milk','espresso'],                        p:120},
+  {n:'Раф',        e:'🍦',s:['espresso','cream','sugar'],                p:180},
+  {n:'Айс латте',  e:'🧊',s:['ice','espresso','milk'],                   p:160},
+  {n:'Карамельный',e:'🍯',s:['espresso','milk','syrup','foam'],          p:220}
+];
+
+var score=0,tLeft=60,level=1,done=0;
+var cur=null,stepIdx=0,curLayers=[];
+var queue=[];
+var gTimer=null,oTimer=null,oLeft=30;
+var running=false;
+
+function startGame(){
+  score=0;tLeft=60;level=1;done=0;queue=[];cur=null;running=true;
+  document.getElementById('ss').style.display='none';
+  document.getElementById('os').style.display='none';
+  document.getElementById('tm').style.color='#f4a234';
+  hud();
+  buildIng();
+  enq();enq();enq();
+  nextOrder();
+  clearInterval(gTimer);
+  gTimer=setInterval(tick,1000);
+}
+
+function tick(){
+  tLeft--;
+  document.getElementById('tm').textContent=tLeft;
+  if(tLeft<=10) document.getElementById('tm').style.color='#ff4444';
+  if(tLeft<=0){clearInterval(gTimer);clearInterval(oTimer);running=false;showOver();}
+}
+
+function showOver(){
+  document.getElementById('fs').textContent=score;
+  document.getElementById('fd').textContent=done;
+  document.getElementById('fl').textContent=level;
+  document.getElementById('os').style.display='flex';
+}
+
+function enq(){
+  var max=Math.min(REC.length,2+level*2);
+  queue.push(REC[Math.floor(Math.random()*max)]);
+  renderQ();
+}
+
+function nextOrder(){
+  if(!running&&tLeft>0)return;
+  if(!queue.length)enq();
+  cur=queue.shift();
+  stepIdx=0;curLayers=[];
+  renderQ();renderOrd();renderCup();
+  clearInterval(oTimer);
+  oLeft=Math.max(10,30-level*2);
+  updOT();
+  oTimer=setInterval(function(){
+    oLeft--;updOT();
+    if(oLeft<=0){
+      clearInterval(oTimer);
+      fb('⏰ Время вышло! −50','bad');
+      score=Math.max(0,score-50);hud();
+      setTimeout(function(){enq();nextOrder();},700);
+    }
+  },1000);
+}
+
+function updOT(){
+  var e=document.getElementById('otimer');
+  e.textContent=oLeft+'s';
+  e.style.color=oLeft<=5?'#ff4444':'#ff9944';
+}
+
+function pressIng(k){
+  if(!cur||!running)return;
+  var exp=cur.s[stepIdx];
+  if(k===exp){
+    curLayers.push(k);stepIdx++;
+    markStep(stepIdx-1,'done');
+    renderCup();
+    if(stepIdx===cur.s.length){
+      clearInterval(oTimer);
+      var bonus=oLeft*2;
+      var pts=cur.p+bonus;
+      score+=pts;done++;
+      if(done%5===0){level++;document.getElementById('lv').textContent=level;fb('🎉 Уровень '+level+'! +'+pts,'good');}
+      else fb('✅ +'+pts+' очков!','good');
+      hud();enq();
+      setTimeout(function(){nextOrder();},700);
+    } else {
+      fb(ING[k].e+' ок','good');
+    }
+  } else {
+    markStep(stepIdx,'wrong');
+    score=Math.max(0,score-15);hud();
+    fb('❌ Неверно! −15','bad');
+    setTimeout(function(){markStep(stepIdx,'');},400);
+  }
+}
+
+function buildIng(){
+  var el=document.getElementById('ings');
+  el.innerHTML='';
+  var keys=Object.keys(ING);
+  keys.forEach(function(k){
+    var b=document.createElement('button');
+    b.className='ibtn';
+    b.setAttribute('onclick','pressIng("'+k+'")');
+    b.innerHTML='<span class="iem">'+ING[k].e+'</span><span class="inm">'+ING[k].n+'</span>';
+    el.appendChild(b);
+  });
+}
+
+function renderOrd(){
+  if(!cur)return;
+  document.getElementById('ord-em').textContent=cur.e;
+  document.getElementById('ord-nm').textContent=cur.n;
+  var row=document.getElementById('steps');
+  row.innerHTML='';
+  cur.s.forEach(function(s,i){
+    var d=document.createElement('div');
+    d.className='sdot'+(i<stepIdx?' done':'');
+    d.id='sd'+i;
+    d.textContent=i<stepIdx?'✓':ING[s].e;
+    row.appendChild(d);
+  });
+}
+
+function markStep(i,state){
+  var d=document.getElementById('sd'+i);
+  if(!d)return;
+  d.className='sdot'+(state?' '+state:'');
+  if(state==='done')d.textContent='✓';
+  else if(state==='wrong')d.textContent='✗';
+  else d.textContent=ING[cur.s[i]]?ING[cur.s[i]].e:'?';
+}
+
+function renderCup(){
+  var g=document.getElementById('clayers');
+  g.innerHTML='';
+  var total=cur?cur.s.length:1;
+  var filled=curLayers.length;
+  function lx(y){return 10+(20-10)*((y-5)/90);}
+  function rx(y){return 80-(80-70)*((y-5)/90);}
+  for(var i=0;i<filled;i++){
+    var f1=(i+1)/total;var f0=i/total;
+    var y1=95-(95-5)*f1;var y2=95-(95-5)*f0;
+    var p=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    p.setAttribute('points',lx(y1)+','+y1+' '+rx(y1)+','+y1+' '+rx(y2)+','+y2+' '+lx(y2)+','+y2);
+    p.setAttribute('fill',ING[curLayers[i]].c);
+    g.appendChild(p);
+  }
+  var ll=document.getElementById('layers');
+  ll.innerHTML='';
+  curLayers.forEach(function(k){
+    var b=document.createElement('span');
+    b.className='lbadge';
+    b.textContent=ING[k].e+' '+ING[k].n;
+    ll.appendChild(b);
+  });
+}
+
+function renderQ(){
+  var el=document.getElementById('queue');
+  el.innerHTML='';
+  queue.forEach(function(o){
+    var d=document.createElement('div');
+    d.className='qitem';
+    d.textContent=o.e+' '+o.n;
+    el.appendChild(d);
+  });
+}
+
+function hud(){
+  document.getElementById('sc').textContent=score;
+}
+
+var fbT=null;
+function fb(msg,type){
+  var e=document.getElementById('fb');
+  e.textContent=msg;e.className=type;
+  clearTimeout(fbT);
+  fbT=setTimeout(function(){e.textContent='';},1200);
+}
+</script>
+</body>
+</html>
